@@ -5,6 +5,7 @@ import argparse
 import shutil
 import requests
 import inquirer
+from env import GITHUB_TOKEN
 
 def install_packages(packages):
     """Installs a list of packages inside the virtual environment."""
@@ -280,7 +281,7 @@ services:
 # 🚀 Function to Create GitHub Repository
 GITHUB_USERNAME = "Alph702"
 GITHUB_SSH_URL = f"git@github.com:{GITHUB_USERNAME}"  # GitHub SSH URL
-github_token = "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"
+github_token = GITHUB_TOKEN
 
 def create_github_repo(project_name, is_public):
     """Creates a GitHub repository and pushes the project via SSH."""
