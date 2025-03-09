@@ -1,9 +1,9 @@
 import os
 import subprocess
 import argparse
-import platform
 import shutil
 
+# 📌 Project Templates
 TEMPLATES = {
     "flask-react": [
         ("backend/app.py", 'from flask import Flask\napp = Flask(__name__)\n\n@app.route("/")\ndef home():\n    return {"message": "Hello, Flask!"}\n\nif __name__ == "__main__":\n    app.run(debug=True)'),
@@ -82,13 +82,126 @@ TEMPLATES = {
 }
 
 
-def create_project(project_name, libraries, template = "basic"):
-    """Creates a Python project folder with .venv and optional package installation."""
-    
-    # Check for required dependencies
-    if shutil.which("git") is None:
-        raise FileNotFoundError("⚠️ Git is not installed! Please install Git and retry.")
-        
+# 📜 License Templates
+LICENSES = {
+    "mit": """MIT License
+
+Copyright (c) 2025 [Your Name]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy 
+of this software and associated documentation files (the "Software"), to deal 
+in the Software without restriction, including without limitation the rights 
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+copies of the Software, and to permit persons to whom the Software is 
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
+THE SOFTWARE.
+""",
+
+    "apache": """Apache License
+Version 2.0, January 2004
+http://www.apache.org/licenses/
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. Definitions.
+"License" shall mean the terms and conditions for use, reproduction, and 
+distribution as defined by Sections 1 through 9 of this document.
+
+"Licensor" shall mean the copyright owner or entity authorized by the 
+copyright owner that is granting the License.
+
+"Legal Entity" shall mean the union of the acting entity and all other 
+entities that control, are controlled by, or are under common control with 
+that entity.
+
+(Full Apache License Text at: http://www.apache.org/licenses/LICENSE-2.0)
+
+END OF TERMS AND CONDITIONS
+""",
+
+    "gpl": """GNU GENERAL PUBLIC LICENSE
+Version 3, 29 June 2007
+
+Copyright (C) 2007 Free Software Foundation, Inc.
+Everyone is permitted to copy and distribute verbatim copies of this 
+license document, but changing it is not allowed.
+
+Preamble:
+The GNU General Public License is a free, copyleft license for software and 
+other kinds of works.
+
+The licenses for most software are designed to take away your freedom to 
+share and change it. By contrast, the GNU General Public License is intended 
+to guarantee your freedom to share and change all versions of a program--to 
+make sure it remains free software for all its users.
+
+(Full GPL License Text at: https://www.gnu.org/licenses/gpl-3.0.txt)
+""",
+
+    "bsd": """BSD 3-Clause License
+
+Copyright (c) 2025, [Your Name]
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without 
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, 
+   this list of conditions, and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, 
+   this list of conditions, and the following disclaimer in the documentation 
+   and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its 
+   contributors may be used to endorse or promote products derived from 
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
+AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+
+(Full BSD 3-Clause License at: https://opensource.org/licenses/BSD-3-Clause)
+""",
+
+    "cc0": """Creative Commons Legal Code
+CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
+
+The person who associated a work with this deed has dedicated the work to 
+the public domain by waiving all of his or her rights to the work worldwide 
+under copyright law, including all related and neighboring rights, to the 
+extent allowed by law.
+
+You can copy, modify, distribute and perform the work, even for commercial 
+purposes, all without asking permission.
+
+(Full CC0 License Text at: https://creativecommons.org/publicdomain/zero/1.0/legalcode)
+"""
+}
+
+
+# 📜 Default `.gitignore` for Python projects
+GITIGNORE_CONTENT = """# Ignore virtual environments
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.idea/
+.vscode/
+"""
+
+def create_project(project_name, libraries, template, license_type):
+    """Creates a Python project folder with .venv, Git, .gitignore, and LICENSE."""
     
     # 1️⃣ Create the project folder
     os.makedirs(project_name, exist_ok=True)
@@ -97,11 +210,11 @@ def create_project(project_name, libraries, template = "basic"):
     # 2️⃣ Navigate into the project folder
     os.chdir(project_name)
 
-    # 3️⃣ Create a virtual environment named `.venv`
+    # 3️⃣ Create a virtual environment
     subprocess.run(["python", "-m", "venv", ".venv"])
     print("✅ Virtual environment created (.venv/)")
 
-    # Create project files based on template
+    # 4️⃣ Create project files based on template
     for path, content in TEMPLATES.get(template, []):
         if path.endswith("/"):
             os.makedirs(path, exist_ok=True)
@@ -110,22 +223,19 @@ def create_project(project_name, libraries, template = "basic"):
                 if isinstance(content, list):  
                     f.write("\n".join(content))  # Convert list to newline-separated string
                 else:
-                    f.write(content or "")  # Write content if not None
+                    f.write(content or "")
 
-
-    # 5️⃣ Install dependencies if provided
-    packages = libraries if libraries else []
-
-    pip_path = os.path.join(".venv", "Scripts", "pip") if platform.system() == "Windows" else os.path.join(".venv", "bin", "pip")
-    if packages:
-        subprocess.run([pip_path, "install"] + packages, check=True)
-        # Ensure requirements.txt is written correctly
-        with open("requirements.txt", "w") as f:
-            for package in (packages if isinstance(packages, list) else [packages]):
+    # 5️⃣ Install dependencies
+    pip_path = os.path.join(".venv", "Scripts", "pip")
+    if libraries:
+        subprocess.run([pip_path, "install"] + libraries, check=True)
+        with open("requirements.txt", "a") as f:
+            for package in libraries:
                 f.write(package + "\n")
+        print(f"📦 Installed additional packages: {', '.join(libraries)}")
 
-        print(f"📦 Installed packages: {', '.join(packages)}")
-    else:
+    # Install from template `requirements.txt`
+    if os.path.exists("requirements.txt"):
         subprocess.run([pip_path, "install", "-r", "requirements.txt"], check=True)
         print("📦 Installed packages from requirements.txt")
 
@@ -133,13 +243,24 @@ def create_project(project_name, libraries, template = "basic"):
     subprocess.run(["git", "init"])
     print("🎯 Git repository initialized!")
 
-    # 7️⃣ Open `main.py` in VS Code
-    code_path = shutil.which("code")  # Get the full path of `code`
-    if code_path:
-        subprocess.run([code_path, "main.py"])
-    else:
-        print("⚠️ VS Code command not found! Please open main.py manually.")
+    # 7️⃣ Create `.gitignore` file
+    with open(".gitignore", "w") as f:
+        f.write(GITIGNORE_CONTENT)
+    print("📜 Created `.gitignore` file.")
 
+    # 8️⃣ Create `LICENSE` file
+    if license_type in LICENSES:
+        with open("LICENSE", "w") as f:
+            f.write(LICENSES[license_type])
+        print(f"📜 Added {license_type.upper()} License.")
+
+    # 9️⃣ Open `main.py` in VS Code
+    code_path = shutil.which("code") or r"C:\Users\Amanat\AppData\Local\Programs\Microsoft VS Code\Code.exe"
+    if os.path.exists(code_path):
+        subprocess.run([code_path, "main.py"])
+        print("🚀 Opened main.py in VS Code!")
+    else:
+        print("⚠️ VS Code not found! Please open main.py manually.")
 
     print("🚀 Project setup complete!")
 
@@ -147,19 +268,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automate Python project setup with .venv & Git")
     parser.add_argument("project_name", type=str, help="Name of the project folder")
     parser.add_argument("-l", "--libraries", nargs="*", help="List of packages to install", default=[])
-    parser.add_argument("-t", "--template", type=str, help="Template to use for project setup", default="basic")
+    parser.add_argument("-t", "--template", type=str, help="Template to use for project setup")
+    parser.add_argument("-L", "--license", type=str, choices=LICENSES.keys(), help="License type (e.g., mit, apache, gpl)", default="mit")
 
     args = parser.parse_args()
-    
-    if args.template:
-        template = args.template.lower()
-        available_templates = {t.lower(): t for t in TEMPLATES}  # Map lowercase to original names
 
-        if template not in available_templates:
-            print(f"⚠️ Template '{args.template}' not found! Available templates:")
-            print("\n".join(f"📋 {t}" for t in TEMPLATES.keys()))
-            exit(1)  # Exit if an invalid template is provided
-        else:
-            template = available_templates[template]  # Convert back to original name
+    # Convert template input to lowercase & validate
+    template_input = args.template.lower() if args.template else "basic"
+    available_templates = {t.lower(): t for t in TEMPLATES}  
 
-    create_project(args.project_name, args.libraries, template)
+    if template_input not in available_templates:
+        print(f"⚠️ Template '{args.template}' not found! Available templates:")
+        print("\n".join(f"📋 {t}" for t in TEMPLATES.keys()))
+        exit(1)
+    else:
+        template = available_templates[template_input]  
+
+    create_project(args.project_name, args.libraries, template, args.license)
