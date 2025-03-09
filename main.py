@@ -3,6 +3,16 @@ import subprocess
 import platform
 import argparse
 import shutil
+import requests
+import inquirer
+
+def install_packages(packages):
+    """Installs a list of packages inside the virtual environment."""
+    if not packages:
+        return
+    pip_path = os.path.join(".venv", "Scripts", "pip") if platform.system() == "Windows" else ".venv/bin/pip"
+    subprocess.run([pip_path, "install"] + packages, check=True)
+    print(f"📦 Installed packages: {', '.join(packages)}")
 
 # 🛠 Function to Detect OS and Activate Virtual Environment
 def activate_virtual_env():
@@ -98,6 +108,23 @@ TEMPLATES = {
     ],
 }
 
+# Common developer tools
+DEV_TOOLS = ["black", "flake8", "pytest", "pre-commit"]
+
+PRE_COMMIT_CONFIG = """repos:
+  - repo: https://github.com/psf/black
+    rev: stable
+    hooks:
+      - id: black
+  - repo: https://github.com/pycqa/flake8
+    rev: stable
+    hooks:
+      - id: flake8
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: stable
+    hooks:
+      - id: prettier
+"""
 
 # 📜 License Templates
 LICENSES = {
@@ -204,7 +231,6 @@ purposes, all without asking permission.
 """
 }
 
-
 # 📜 Default `.gitignore` for Python projects
 GITIGNORE_CONTENT = """# Ignore virtual environments
 .venv/
@@ -217,7 +243,88 @@ __pycache__/
 .vscode/
 """
 
-def create_project(project_name, libraries, template, license_type, activate):
+# 🎯 Docker Configurations
+DOCKERFILE = """# Use official Python image
+FROM python:3.13
+
+# Set the working directory
+WORKDIR /app
+
+# Copy project files
+COPY . .
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose the application port
+EXPOSE 8000
+
+# Run the application (modify this for specific frameworks)
+CMD ["python", "main.py"]
+"""
+
+DOCKER_COMPOSE = """version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: my_python_project
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+"""
+
+# 🚀 Function to Create GitHub Repository
+GITHUB_USERNAME = "Alph702"
+GITHUB_SSH_URL = f"git@github.com:{GITHUB_USERNAME}"  # GitHub SSH URL
+github_token = "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"
+
+def create_github_repo(project_name, is_public):
+    """Creates a GitHub repository and pushes the project via SSH."""
+
+    # 🛠️ 1️⃣ Ask user for public/private repo choice
+    repo_visibility = "public" if is_public else "private"
+    print(f"🔹 Creating a {repo_visibility} GitHub repository...")
+
+    url = "https://api.github.com/user/repos"
+    headers = {
+        "Authorization": f"token {github_token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    data = {"name": project_name, "private": not is_public}
+
+    response = requests.post(url, json=data, headers=headers)
+
+    if response.status_code == 201:
+        print(f"✅ {repo_visibility.capitalize()} repository created successfully!")
+    elif response.status_code == 422:
+        print("⚠️ Repository already exists on GitHub.")
+    else:
+        print(f"❌ Failed to create repository: {response.json()}")
+        return
+
+    # 🛠️ 2️⃣ Initialize Git & Add Remote Repository
+    print("🎯 Initializing Git repository...")
+    subprocess.run(["git", "init"])
+    subprocess.run(["git", "add", "."])
+    subprocess.run(["git", "commit", "-m", "Initial commit"])
+
+    ssh_repo_url = f"{GITHUB_SSH_URL}/{project_name}.git"
+    subprocess.run(["git", "remote", "add", "origin", ssh_repo_url])
+
+    print(f"🔗 Remote repository added: {ssh_repo_url}")
+
+    # 🛠️ 3️⃣ Push Code to GitHub
+    print("🚀 Pushing project to GitHub...")
+    subprocess.run(["git", "branch", "-M", "main"])
+    subprocess.run(["git", "push", "-u", "origin", "main"])
+
+    print("✅ Project pushed successfully!")
+
+def create_project(project_name, libraries, template, license_type, activate, install_dev_tools, docker, github, Is_private = False):
     """Creates a Python project folder with .venv, Git, .gitignore, and LICENSE."""
     
     # 1️⃣ Create the project folder
@@ -251,27 +358,49 @@ def create_project(project_name, libraries, template, license_type, activate):
                 f.write(package + "\n")
         print(f"📦 Installed additional packages: {', '.join(libraries)}")
 
-    # Install from template `requirements.txt`
-    if os.path.exists("requirements.txt"):
-        subprocess.run([pip_path, "install", "-r", "requirements.txt"], check=True)
-        print("📦 Installed packages from requirements.txt")
+    if install_dev_tools:
+        install_packages(DEV_TOOLS)
+        with open(".pre-commit-config.yaml", "w") as f:
+            f.write(PRE_COMMIT_CONFIG)
+            print("✅ Created .pre-commit-config.yaml")
+        subprocess.run([".venv/Scripts/pre-commit", "install"], check=True)
+        print("🔗 Pre-commit hooks installed!")
 
-    # 6️⃣ Initialize Git repository
+    # Install from template `requirements.txt`
+    if template is not "basic" and os.path.exists("requirements.txt"):
+            subprocess.run([pip_path, "install", "-r", "requirements.txt"], check=True)
+            print("📦 Installed packages from requirements.txt")
+    
+    # 6️⃣ Create Docker files (if requested)
+    if docker:
+        with open("Dockerfile", "w") as f:
+            f.write(DOCKERFILE)
+
+        with open("docker-compose.yml", "w") as f:
+            f.write(DOCKER_COMPOSE)
+
+        print("🐳 Docker setup added!")
+
+    # 7️⃣ Initialize Git repository
     subprocess.run(["git", "init"])
     print("🎯 Git repository initialized!")
 
-    # 7️⃣ Create `.gitignore` file
+    # 8️⃣ Create `.gitignore` file
     with open(".gitignore", "w") as f:
         f.write(GITIGNORE_CONTENT)
     print("📜 Created `.gitignore` file.")
 
-    # 8️⃣ Create `LICENSE` file
+    if github:
+        create_github_repo(project_name, Is_private)
+        
+
+    # 9️⃣ Create `LICENSE` file
     if license_type in LICENSES:
         with open("LICENSE", "w") as f:
             f.write(LICENSES[license_type])
         print(f"📜 Added {license_type.upper()} License.")
 
-    # 9️⃣ Open `main.py` in VS Code
+    # 🔟 Open `main.py` in VS Code
     code_path = shutil.which("code") or r"C:\Users\Amanat\AppData\Local\Programs\Microsoft VS Code\Code.exe"
     if os.path.exists(code_path):
         subprocess.run([code_path, "main.py"])
@@ -279,11 +408,25 @@ def create_project(project_name, libraries, template, license_type, activate):
     else:
         print("⚠️ VS Code not found! Please open main.py manually.")
 
-    # 🔟 Activate Virtual Environment
+    # 1️⃣1️⃣ Activate Virtual Environment
     if activate:
         activate_virtual_env()
+        
 
     print("🚀 Project setup complete!")
+
+def interactive_setup():
+    """Runs an interactive prompt for project setup."""
+    questions = [
+        inquirer.Text("project_name", message="Enter project name"),
+        inquirer.List("template", message="Choose a project type", choices=list(TEMPLATES.keys())),
+        inquirer.Confirm("github", message="Initialize Git repository?", default=True),
+        inquirer.List("license_type", message="Select a license", choices=["MIT", "Apache-2.0", "GPL-3.0"], default="MIT"),
+        inquirer.Confirm("docker", message="Include Docker support?", default=False),
+        inquirer.Confirm("activate", message="Activate virtual environment after setup?", default=True),
+    ]
+    answers = inquirer.prompt(questions)
+    create_project(**answers)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automate Python project setup with .venv & Git")
@@ -292,6 +435,11 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--template", type=str, help="Template to use for project setup")
     parser.add_argument("-lic", "--license", type=str, choices=LICENSES.keys(), help="License type (e.g., mit, apache, gpl)", default="mit")
     parser.add_argument("-a", "--activate", action="store_true", help="Automatically activate virtual environment")
+    parser.add_argument("-d", "--dev", action="store_true", help="Install common dev tools (black, flake8, pytest, pre-commit)")
+    parser.add_argument("--docker", action="store_true", help="Add Docker support")
+    parser.add_argument("--github", action="store_true", help="Create and push to GitHub repo")
+    parser.add_argument("--private", action="store_true", help="Make the GitHub repository private")
+    parser.add_argument("-i", "--interactive", action="store_true", help="Run in interactive mode")
 
     args = parser.parse_args()
 
@@ -306,4 +454,10 @@ if __name__ == "__main__":
     else:
         template = available_templates[template_input]  
 
-    create_project(args.project_name, args.libraries, template, args.license, args.activate)
+
+    if args.interactive:
+        interactive_setup()
+    elif args.project_name:
+        create_project(args.project_name, args.libraries, template, args.license, args.activate, args.dev, args.docker, args.github, args.private)
+    else:
+        print("❌ Please provide a project name or use `--interactive` mode.")
