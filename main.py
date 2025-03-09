@@ -1,7 +1,24 @@
 import os
 import subprocess
+import platform
 import argparse
 import shutil
+
+# 🛠 Function to Detect OS and Activate Virtual Environment
+def activate_virtual_env():
+    """Automatically activates the virtual environment based on OS."""
+    if platform.system() == "Windows":
+        activate_cmd = ".venv\\Scripts\\activate"
+        shell_cmd = ["cmd.exe", "/k", activate_cmd]  # Opens new command prompt
+    else:
+        activate_cmd = "source .venv/bin/activate"
+        shell_cmd = ["bash", "-c", f"{activate_cmd} && exec bash"]  # Opens new terminal session
+
+    try:
+        subprocess.run(shell_cmd)
+        print("⚡ Virtual environment activated!")
+    except Exception:
+        print(f"⚠️ Unable to auto-activate! Run manually:\n   {activate_cmd}")
 
 # 📌 Project Templates
 TEMPLATES = {
@@ -200,7 +217,7 @@ __pycache__/
 .vscode/
 """
 
-def create_project(project_name, libraries, template, license_type):
+def create_project(project_name, libraries, template, license_type, activate):
     """Creates a Python project folder with .venv, Git, .gitignore, and LICENSE."""
     
     # 1️⃣ Create the project folder
@@ -262,6 +279,10 @@ def create_project(project_name, libraries, template, license_type):
     else:
         print("⚠️ VS Code not found! Please open main.py manually.")
 
+    # 🔟 Activate Virtual Environment
+    if activate:
+        activate_virtual_env()
+
     print("🚀 Project setup complete!")
 
 if __name__ == "__main__":
@@ -269,7 +290,8 @@ if __name__ == "__main__":
     parser.add_argument("project_name", type=str, help="Name of the project folder")
     parser.add_argument("-l", "--libraries", nargs="*", help="List of packages to install", default=[])
     parser.add_argument("-t", "--template", type=str, help="Template to use for project setup")
-    parser.add_argument("-L", "--license", type=str, choices=LICENSES.keys(), help="License type (e.g., mit, apache, gpl)", default="mit")
+    parser.add_argument("-lic", "--license", type=str, choices=LICENSES.keys(), help="License type (e.g., mit, apache, gpl)", default="mit")
+    parser.add_argument("-a", "--activate", action="store_true", help="Automatically activate virtual environment")
 
     args = parser.parse_args()
 
@@ -284,4 +306,4 @@ if __name__ == "__main__":
     else:
         template = available_templates[template_input]  
 
-    create_project(args.project_name, args.libraries, template, args.license)
+    create_project(args.project_name, args.libraries, template, args.license, args.activate)
